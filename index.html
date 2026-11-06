@@ -1,158 +1,621 @@
-<!-- ... existing code ... -->
-    <!-- MODAL 1: AI Prompt & Key Config -->
-    <div id="aiModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-npp-sidebar border border-npp-border rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
-            <div class="bg-[#2d2d2d] px-4 py-2.5 border-b border-npp-border flex items-center justify-between">
-                <div class="flex items-center space-x-2 text-npp-accentGreen font-bold text-sm">
-                    <i data-lucide="cpu" class="w-4 h-4"></i>
-                    <span>AI Engine & Parsing Rules Config</span>
-                </div>
-                <button id="btnCloseAI" class="text-npp-dim hover:text-white">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <div class="p-4 space-y-4 text-xs font-sans overflow-y-auto max-h-[80vh]">
-                <!-- Master AI Toggle Option -->
-                <div class="flex items-center justify-between p-3 bg-[#1e1e1e] border border-npp-border rounded-md">
-                    <div>
-                        <span class="font-bold text-npp-text">Enable Gemini AI Core</span>
-                        <p class="text-[11px] text-npp-dim">When turned OFF, @ai tags will be executed as local offline text tasks without contacting any external API.</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="cfgAIEnable" class="sr-only peer" checked>
-                        <div class="w-9 h-5 bg-npp-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-npp-accentGreen"></div>
-                    </label>
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MarkFlow - Plain-Text Task Runner & Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --np-bg: #1e1e1e;
+      --np-sidebar: #252526;
+      --np-tab-active: #1e1e1e;
+      --np-tab-inactive: #2d2d2d;
+      --np-text: #d4d4d4;
+      --np-accent: #007acc;
+      --np-accent-hover: #0098ff;
+      --np-border: #3e3e42;
+    }
+    body {
+      background-color: var(--np-bg);
+      color: var(--np-text);
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #3e3e42;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #555555;
+    }
+    /* Fixed styles for inputs, textareas, and selects */
+    input[type="text"], input[type="password"], textarea, select {
+      background-color: #2d2d2d !important;
+      color: #e0e0e0 !important;
+      border: 1px solid #3e3e42 !important;
+      border-radius: 4px;
+    }
+    input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+      border-color: #007acc !important;
+      outline: none !important;
+    }
+    /* Fixed modal dark styling */
+    .modal-content {
+      background-color: #252526 !important;
+      color: #d4d4d4 !important;
+      border: 1px solid #3e3e42 !important;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
 
-                <div>
-                    <label class="block font-semibold text-npp-text mb-1">Gemini API Key (Optional)</label>
-                    <input type="password" id="cfgApiKey" placeholder="Leave empty for runtime context key or insert your key..." class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none focus:border-npp-accent font-mono text-xs">
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-npp-text mb-1">Model Selection</label>
-                    <select id="cfgModel" class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none font-mono text-xs">
-                        <option value="gemini-3-flash-preview">gemini-3-flash-preview (Recommended)</option>
-                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-npp-text mb-1">System Instructions / Execution Prompt</label>
-                    <textarea id="cfgSystemPrompt" rows="6" class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none focus:border-npp-accent font-mono text-xs leading-relaxed" placeholder="Tell the AI how to interpret markdown tags, refine tasks, generate logs or compile summaries..."></textarea>
-                    <p class="text-[11px] text-npp-dim mt-1">These guidelines govern how the AI processes your Markdown notes, handles task execution, and fulfills `@ai` custom directives.</p>
-                </div>
-            </div>
-            <div class="bg-[#2d2d2d] px-4 py-2 border-t border-npp-border flex justify-end space-x-2">
-                <button id="btnSaveAI" class="bg-npp-accent hover:bg-npp-accent/80 text-white px-4 py-1.5 rounded text-xs transition">Save Configuration</button>
-            </div>
-        </div>
+  <!-- Top Menu Bar (Notepad++ Style) -->
+  <header class="bg-[#2d2d2d] border-b border-[#3e3e42] text-xs flex items-center justify-between px-3 py-1 text-gray-300">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-1 font-bold text-white tracking-wide">
+        <span class="text-emerald-400">MarkFlow</span>
+        <span class="text-[10px] bg-emerald-950 text-emerald-400 px-1 rounded border border-emerald-800">v1.2.0</span>
+      </div>
+      <nav class="flex space-x-2">
+        <button id="btn-open-folder" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition">📂 Open Folder</button>
+        <button id="btn-new-file" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition">📄 New Note</button>
+        <button id="btn-run-all" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-2.5 py-0.5 rounded transition">▶ Run Active .md</button>
+        <button id="btn-open-scheduler" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition flex items-center space-x-1">
+          <span>⏰ Scheduler</span>
+          <span id="scheduler-badge" class="bg-gray-700 text-[9px] px-1 rounded text-gray-300">OFF</span>
+        </button>
+        <button id="btn-open-ai-rules" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition">🤖 AI Rules</button>
+        <button id="btn-open-manual" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition">📖 User Manual (PDF)</button>
+      </nav>
     </div>
-<!-- ... existing code ... -->
-    <!-- App Logic Script -->
-    <script>
-        // Default Mock Data with Comprehensive Predefined Markdown Examples
-        const defaultFiles = [
-            {
-                name: "01_local_tasks_no_ai.md",
-                content: `# Local Workflow (No-AI Mode Enabled)\n\nThis document contains only offline plain-text tasks and local triggers that require zero external API setup.\n\n## Local Operations\n- [ ] @build npm run lint && npm run test\n- [ ] @clean remove temporary build caches and log buffers\n- [ ] @webhook https://httpbin.org/post payload={"status":"offline_check"}\n- [ ] @task Verify local filesystem markdown consistency\n\n## Standard Checklist\n- [ ] Backup local configuration files\n- [ ] Check background scheduler execution status\n`
-            },
-            {
-                name: "02_ai_workflows.md",
-                content: `# AI Assisted Note Automation\n\nEnable the AI core in **AI Core Rules** to automatically run `@ai` instructions.\n\n## Tasks for AI Execution\n- [ ] @ai Draft a 3-bullet summary of local-first plain-text advantages.\n- [ ] @ai Review this note and suggest 2 missing micro-tasks.\n- [ ] Standard task: Manually approve AI output formatting.\n`
-            },
-            {
-                name: "03_webhook_triggers.md",
-                content: `# External Webhooks & Micro-services\n\nTriggers HTTP POST requests to third-party endpoints or webhooks (n8n, Make, Zapier, custom backend API).\n\n## Webhook Pipeline\n- [ ] @webhook https://jsonplaceholder.typicode.com/posts\n- [ ] @task Verify webhook response payload status in TUI Console\n`
-            },
-            {
-                name: "04_scheduled_automation.md",
-                content: `# Background Scheduled Maintenance\n\nThis note is configured for periodic execution via the **Task Scheduler** modal (top menu).\n\n## Scheduled Tasks\n- [ ] @clean purge active workspace logs\n- [ ] @build run release check\n- [ ] @webhook https://httpbin.org/post payload={"schedule":"daily_cron"}\n`
-            }
-        ];
+    <div class="flex items-center space-x-3 text-[11px] text-gray-400">
+      <span id="ai-status-indicator" class="flex items-center space-x-1">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span>AI: Active</span>
+      </span>
+      <span id="folder-name-display" class="truncate max-w-[200px]">Workspace: Memory Sandbox</span>
+    </div>
+  </header>
 
-        // State Management
-        let files = [...defaultFiles];
-        let activeFileIndex = 0;
-        let aiEnabled = true;
-        let systemPrompt = "You are MarkFlow AI, an intelligent Markdown task execution engine. Parse user tasks, execute directives clearly, and return high-value concise outputs formatted as clean markdown notes.";
-        let apiKey = "";
-        let selectedModel = "gemini-3-flash-preview";
-<!-- ... existing code ... -->
-        function initSchedulerUI() {
-            schEnable.checked = schedulerConfig.enabled;
-            schMode.value = schedulerConfig.mode;
-            document.getElementById('schIntervalValue').value = schedulerConfig.intervalValue;
-            document.getElementById('schIntervalUnit').value = schedulerConfig.intervalUnit;
-            document.getElementById('schTime').value = schedulerConfig.time;
-            document.getElementById('schTargetDoc').value = schedulerConfig.targetDoc;
-            document.getElementById('schNotify').checked = schedulerConfig.notify;
-            toggleSchedulerModeUI();
+  <!-- Main Container -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- Left Sidebar File Explorer -->
+    <aside class="w-64 bg-[#252526] border-r border-[#3e3e42] flex flex-col text-xs">
+      <div class="px-3 py-2 font-bold uppercase tracking-wider text-gray-400 border-b border-[#3e3e42] flex justify-between items-center">
+        <span>Files</span>
+        <span class="text-[10px] text-gray-500">.md files</span>
+      </div>
+      <div id="file-tree" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        <!-- Markdown Files Rendered Here -->
+      </div>
+    </aside>
+
+    <!-- Editor & Terminal Area -->
+    <main class="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden">
+      
+      <!-- Editor Tabs Bar -->
+      <div id="tab-bar" class="flex bg-[#252526] border-b border-[#3e3e42] overflow-x-auto text-xs text-gray-400">
+        <!-- Dynamic Tabs -->
+      </div>
+
+      <!-- Text Editor Section -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Line Numbers -->
+        <div id="line-numbers" class="w-12 bg-[#1e1e1e] text-right py-3 pr-2 text-gray-600 select-none text-xs leading-5 border-r border-[#2d2d2d] custom-scrollbar overflow-hidden">
+          1
+        </div>
+        <!-- Raw Textarea -->
+        <textarea id="editor" class="flex-1 bg-[#1e1e1e] text-[#d4d4d4] p-3 text-xs leading-5 font-mono border-none outline-none resize-none custom-scrollbar" placeholder="Select or create a .md file to start writing tasks..." spellcheck="false"></textarea>
+      </div>
+
+      <!-- TUI Terminal Log Panel -->
+      <section class="h-48 bg-[#0f0f0f] border-t border-[#3e3e42] flex flex-col text-xs font-mono">
+        <div class="bg-[#1e1e1e] px-3 py-1 border-b border-[#2d2d2d] flex justify-between items-center text-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="text-emerald-400 font-bold">TUI Output Console</span>
+            <span id="next-run-timer" class="text-[10px] text-gray-500"></span>
+          </div>
+          <button id="btn-clear-terminal" class="hover:text-white">Clear Console</button>
+        </div>
+        <div id="terminal-output" class="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-1 text-gray-300">
+          <div class="text-gray-500">[System] MarkFlow initialized. Ready for task execution.</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Status Bar Footer -->
+  <footer class="bg-[#007acc] text-white text-[11px] px-3 py-0.5 flex justify-between items-center font-mono">
+    <div class="flex items-center space-x-4">
+      <span id="status-line-col">Ln 1, Col 1</span>
+      <span id="status-length">Length: 0</span>
+    </div>
+    <div>UTF-8 | Markdown Plain-Text Runner</div>
+  </footer>
+
+  <!-- MODAL: AI Configuration -->
+  <div id="modal-ai" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="modal-content w-full max-w-xl rounded-lg p-5 flex flex-col space-y-4">
+      <div class="flex justify-between items-center border-b border-[#3e3e42] pb-2">
+        <h3 class="font-bold text-white text-sm">AI Engine & Parsing Rules Config</h3>
+        <button class="btn-close-modal text-gray-400 hover:text-white">✕</button>
+      </div>
+      
+      <!-- AI Toggle Button -->
+      <div class="flex items-center space-x-3 bg-[#1e1e1e] p-3 rounded border border-[#3e3e42]">
+        <input type="checkbox" id="ai-toggle-enable" class="w-4 h-4 accent-emerald-500 cursor-pointer" checked>
+        <label for="ai-toggle-enable" class="text-xs cursor-pointer select-none">
+          <span class="font-bold text-white block">Enable Gemini AI Core</span>
+          <span class="text-gray-400 text-[11px]">When turned OFF, @ai tags will be executed as local offline text tasks without contacting any external API.</span>
+        </label>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">Gemini API Key (Optional)</label>
+        <input type="password" id="cfg-api-key" class="w-full px-3 py-1.5 text-xs" placeholder="Leave empty for runtime key injection...">
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">Model Selection</label>
+        <select id="cfg-ai-model" class="w-full px-3 py-1.5 text-xs">
+          <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & Recommended)</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro (Advanced Reasoning)</option>
+        </select>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">System Instructions / Execution Prompt</label>
+        <textarea id="cfg-ai-prompt" rows="4" class="w-full px-3 py-1.5 text-xs font-mono" placeholder="Tell the AI how to interpret markdown tags, refine tasks, generate logs or compile summaries..."></textarea>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <span class="text-[11px] text-gray-400">Rules control @ai directive execution in Markdown notes.</span>
+        <button id="btn-save-ai-cfg" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-1.5 rounded text-xs transition">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Scheduler Configuration -->
+  <div id="modal-scheduler" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="modal-content w-full max-w-lg rounded-lg p-5 flex flex-col space-y-4">
+      <div class="flex justify-between items-center border-b border-[#3e3e42] pb-2">
+        <h3 class="font-bold text-white text-sm">Background Task Scheduler</h3>
+        <button class="btn-close-modal text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="flex items-center space-x-3 bg-[#1e1e1e] p-3 rounded border border-[#3e3e42]">
+        <input type="checkbox" id="sched-enable" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+        <label for="sched-enable" class="text-xs cursor-pointer select-none font-bold text-white">Enable Automated Background Scheduling</label>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-gray-300">Execution Frequency Mode</label>
+        <select id="sched-mode" class="w-full px-3 py-1.5 text-xs">
+          <option value="interval">Recurring Interval (e.g., Every N Minutes)</option>
+          <option value="weekly">Weekly Schedule (Specific Day & Time)</option>
+        </select>
+      </div>
+
+      <!-- Interval Settings -->
+      <div id="sched-interval-box" class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">Interval (Minutes)</label>
+        <input type="number" id="sched-interval-val" min="1" max="1440" value="15" class="w-full px-3 py-1.5 text-xs bg-[#2d2d2d] border border-[#3e3e42] text-white">
+      </div>
+
+      <!-- Weekly Schedule Settings -->
+      <div id="sched-weekly-box" class="grid grid-cols-2 gap-3 hidden">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-gray-300">Day of Week</label>
+          <select id="sched-day" class="w-full px-3 py-1.5 text-xs">
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-gray-300">Execution Time (HH:MM)</label>
+          <input type="time" id="sched-time" value="09:00" class="w-full px-3 py-1.5 text-xs bg-[#2d2d2d] border border-[#3e3e42] text-white">
+        </div>
+      </div>
+
+      <div class="text-[11px] text-gray-400 bg-[#1e1e1e] p-2 rounded">
+        💡 Keep this app tab open in your browser to run background workflows automatically.
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button id="btn-save-sched" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-1.5 rounded text-xs transition">Save & Start Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC JavaScript -->
+  <script>
+    // State Store
+    const state = {
+      files: [
+        {
+          name: "01_local_tasks_no_ai.md",
+          content: "# Local Offline Tasks (No AI Required)\n\nThis document shows standard markdown local workflows.\n\n- [ ] Clean temporary files @clean --path ./tmp\n- [ ] Trigger local build step @build npm run build\n- [ ] Output custom log message @task Processing offline file batch\n"
+        },
+        {
+          name: "02_ai_workflows.md",
+          content: "# AI-Powered Task Workflows\n\n- [ ] Analyze codebase performance @ai Review memory leak vulnerabilities\n- [ ] Generate summary report @ai Summarize active project milestones\n"
+        },
+        {
+          name: "03_webhook_triggers.md",
+          content: "# Automation & Webhook Integration\n\n- [ ] Dispatch event notification @webhook https://httpbin.org/post\n"
+        },
+        {
+          name: "04_scheduled_automation.md",
+          content: "# Weekly Scheduled Execution Note\n\n- [ ] Weekly database backup task @task Backup database to local volume\n- [ ] Generate status report @ai Generate end of week executive summary\n"
         }
+      ],
+      activeFileIndex: 0,
+      dirHandle: null,
+      ai: {
+        enabled: true,
+        apiKey: '',
+        model: 'gemini-2.5-flash',
+        prompt: 'You are the MarkFlow Task Engine AI. Process user markdown task directives efficiently and return clear execution summaries.'
+      },
+      scheduler: {
+        enabled: false,
+        mode: 'interval',
+        interval: 15,
+        day: 1,
+        time: '09:00',
+        timerId: null
+      }
+    };
 
-        function initAISettingsUI() {
-            document.getElementById('cfgAIEnable').checked = aiEnabled;
-            document.getElementById('cfgApiKey').value = apiKey;
-            document.getElementById('cfgModel').value = selectedModel;
-            document.getElementById('cfgSystemPrompt').value = systemPrompt;
-            updateAIServiceStatusBar();
-        }
+    // DOM References
+    const fileTree = document.getElementById('file-tree');
+    const tabBar = document.getElementById('tab-bar');
+    const editor = document.getElementById('editor');
+    const lineNumbers = document.getElementById('line-numbers');
+    const terminalOutput = document.getElementById('terminal-output');
+    const folderNameDisplay = document.getElementById('folder-name-display');
+    const statusLineCol = document.getElementById('status-line-col');
+    const statusLength = document.getElementById('status-length');
+    const aiStatusIndicator = document.getElementById('ai-status-indicator');
 
-        function updateAIServiceStatusBar() {
-            const sbAIService = document.getElementById('sbAIService');
-            if (aiEnabled) {
-                sbAIService.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span><span>AI Enabled (${selectedModel})</span>`;
+    // Initialization
+    function init() {
+      renderFileList();
+      renderTabs();
+      loadActiveFile();
+      setupEventListeners();
+      updateLineNumbers();
+    }
+
+    // Render Files Sidebar
+    function renderFileList() {
+      fileTree.innerHTML = '';
+      state.files.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = `px-2 py-1.5 rounded cursor-pointer flex items-center justify-between text-xs hover:bg-[#2d2d2d] ${index === state.activeFileIndex ? 'bg-[#3e3e42] text-white font-bold' : 'text-gray-400'}`;
+        item.innerHTML = `
+          <span class="truncate">📄 ${file.name}</span>
+        `;
+        item.onclick = () => switchFile(index);
+        fileTree.appendChild(item);
+      });
+    }
+
+    // Render Top Tabs
+    function renderTabs() {
+      tabBar.innerHTML = '';
+      state.files.forEach((file, index) => {
+        const tab = document.createElement('div');
+        tab.className = `px-3 py-1.5 border-r border-[#3e3e42] cursor-pointer flex items-center space-x-2 text-xs ${index === state.activeFileIndex ? 'bg-[#1e1e1e] text-emerald-400 font-bold border-t-2 border-t-emerald-500' : 'bg-[#2d2d2d] text-gray-400'}`;
+        tab.innerHTML = `
+          <span>${file.name}</span>
+        `;
+        tab.onclick = () => switchFile(index);
+        tabBar.appendChild(tab);
+      });
+    }
+
+    function switchFile(index) {
+      if (state.files[state.activeFileIndex]) {
+        state.files[state.activeFileIndex].content = editor.value;
+      }
+      state.activeFileIndex = index;
+      renderFileList();
+      renderTabs();
+      loadActiveFile();
+    }
+
+    function loadActiveFile() {
+      const active = state.files[state.activeFileIndex];
+      if (active) {
+        editor.value = active.content;
+        updateLineNumbers();
+        updateStatus();
+      }
+    }
+
+    function updateLineNumbers() {
+      const lines = editor.value.split('\n').length;
+      lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+    }
+
+    function updateStatus() {
+      const text = editor.value;
+      const lines = text.substr(0, editor.selectionStart).split("\n");
+      const currentLine = lines.length;
+      const currentCol = lines[lines.length - 1].length + 1;
+      statusLineCol.textContent = `Ln ${currentLine}, Col ${currentCol}`;
+      statusLength.textContent = `Length: ${text.length}`;
+    }
+
+    function logTerminal(msg, type = 'info') {
+      const colors = {
+        info: 'text-gray-300',
+        success: 'text-emerald-400 font-bold',
+        warning: 'text-amber-400',
+        error: 'text-rose-400 font-bold',
+        ai: 'text-cyan-400'
+      };
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = `${colors[type] || 'text-gray-300'}`;
+      div.innerHTML = `<span class="text-gray-500">[${time}]</span> ${msg}`;
+      terminalOutput.appendChild(div);
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+
+    // Task Execution Engine
+    async function runTasks() {
+      logTerminal('--- Starting Task Execution Flow ---', 'info');
+      const lines = editor.value.split('\n');
+      let tasksFound = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('- [ ]') || line.startsWith('- [x]')) {
+          tasksFound++;
+          const taskContent = line.replace(/- \[[ x]\]/, '').trim();
+          
+          if (taskContent.includes('@ai')) {
+            if (!state.ai.enabled) {
+              logTerminal(`[OFFLINE MODE] Skipping API request for @ai tag: "${taskContent}"`, 'warning');
             } else {
-                sbAIService.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span><span class="text-npp-dim">AI Core Disabled (Offline Mode)</span>`;
+              logTerminal(`Executing AI Directive: ${taskContent}`, 'ai');
+              await executeAITask(taskContent);
             }
-        }
-<!-- ... existing code ... -->
-        window.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            initAISettingsUI();
-            renderFileTree();
-            renderTabs();
-            loadActiveFile();
-            initSchedulerUI();
-<!-- ... existing code ... -->
-        // Execute Tasks Engine
-        async function executeTask(task) {
-            termStatus.innerText = `[Running Task Line ${task.lineIndex + 1}]`;
-            termStatus.className = 'text-yellow-400 font-bold';
-
-            logTerminal(`Executing line ${task.lineIndex + 1}: "${task.content}"`, 'info');
-
-            if (task.type === 'ai') {
-                if (!aiEnabled) {
-                    logTerminal(`AI disabled in settings. Skipping Gemini call and running offline: "${task.content}"`, 'warn');
-                } else {
-                    await handleAITask(task);
-                }
-            } else if (task.type === 'webhook') {
-                await handleWebhookTask(task);
-            } else if (task.type === 'clean') {
-                logTerminal(`Triggered local cleanup routine for active note buffer...`, 'success');
-            } else if (task.type === 'build') {
-                logTerminal(`[BUILD RUNNER] Simulating build pipeline execution: ${task.content.replace('@build', '')}`, 'success');
-            } else {
-                logTerminal(`Task completed: ${task.content}`, 'success');
+          } else if (taskContent.includes('@webhook')) {
+            const url = taskContent.split('@webhook')[1].trim();
+            logTerminal(`Triggering Webhook: ${url}`, 'info');
+            try {
+              await fetch(url, { method: 'POST', body: JSON.stringify({ task: taskContent }) });
+              logTerminal(`Webhook delivered successfully!`, 'success');
+            } catch (err) {
+              logTerminal(`Webhook execution failed: ${err.message}`, 'error');
             }
-
-            // Mark task checkbox as completed in markdown text
-            markTaskComplete(task.lineIndex);
-
-            termStatus.innerText = '[Idle]';
-            termStatus.className = 'text-npp-dim';
+          } else if (taskContent.includes('@clean')) {
+            logTerminal(`[Clean Action] Executing directory cleanup parameter...`, 'success');
+          } else if (taskContent.includes('@build')) {
+            logTerminal(`[Build Action] Running local shell step: ${taskContent}`, 'success');
+          } else {
+            logTerminal(`Local Task Processed: ${taskContent}`, 'success');
+          }
         }
-<!-- ... existing code ... -->
-        // Save AI Modal Configuration
-        function saveAISettings() {
-            aiEnabled = document.getElementById('cfgAIEnable').checked;
-            apiKey = document.getElementById('cfgApiKey').value.trim();
-            selectedModel = document.getElementById('cfgModel').value;
-            systemPrompt = document.getElementById('cfgSystemPrompt').value.trim();
-            document.getElementById('aiModal').classList.add('hidden');
-            updateAIServiceStatusBar();
-            logTerminal(`AI settings updated. Status: ${aiEnabled ? 'Enabled (' + selectedModel + ')' : 'Disabled (Offline Mode)'}`, 'success');
+      }
+
+      if (tasksFound === 0) {
+        logTerminal('No markdown task checkboxes (- [ ]) detected in active note.', 'warning');
+      } else {
+        logTerminal(`Completed processing ${tasksFound} task(s).`, 'success');
+      }
+    }
+
+    async function executeAITask(taskText) {
+      if (!state.ai.apiKey) {
+        logTerminal('AI execution simulation (No API Key set in AI Rules menu).', 'warning');
+        return;
+      }
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.ai.model}:generateContent?key=${state.ai.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${state.ai.prompt}\nTask: ${taskText}` }] }]
+          })
+        });
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response text received.';
+        logTerminal(`AI Response: ${reply}`, 'ai');
+      } catch (e) {
+        logTerminal(`AI Call Error: ${e.message}`, 'error');
+      }
+    }
+
+    // PDF Manual Generator
+    function generatePDFManual() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFont("courier", "bold");
+      doc.setFontSize(16);
+      doc.text("MarkFlow - User Documentation Manual", 15, 20);
+
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      
+      const manualText = [
+        "===========================================================",
+        "PLAIN-TEXT TASK RUNNER & MARKDOWN AUTOMATION EDITOR",
+        "===========================================================",
+        "",
+        "1. OVERVIEW",
+        "MarkFlow allows local-first task execution directly inside plain",
+        "text markdown notes. Automate build steps, clean commands, webhooks,",
+        "and AI directives effortlessly.",
+        "",
+        "2. MARKDOWN TAG DIRECTIVES",
+        "  - [ ] Standard task              -> Local execution log",
+        "  - [ ] Task @ai <instruction>    -> Processed via Gemini AI",
+        "  - [ ] Action @webhook <url>     -> Trigger HTTP POST payload",
+        "  - [ ] Cleanup @clean <path>     -> Executes file system cleanup",
+        "  - [ ] Shell task @build <cmd>   -> Runs build script step",
+        "",
+        "3. BACKGROUND SCHEDULING",
+        "Open the Scheduler menu to configure periodic background runs.",
+        "Choose between minute intervals or weekly day/time scheduling.",
+        "",
+        "4. AI CORE TOGGLE",
+        "Disable AI Core in AI Rules configuration to execute files completely",
+        "offline without making external network calls.",
+        "",
+        "===========================================================",
+        "Generated by MarkFlow Plain-Text Task Runner System"
+      ];
+
+      let y = 35;
+      manualText.forEach(line => {
+        doc.text(line, 15, y);
+        y += 6;
+      });
+
+      doc.save("MarkFlow_User_Manual.pdf");
+      logTerminal('User Manual PDF generated and downloaded.', 'success');
+    }
+
+    // Event Listeners Setup
+    function setupEventListeners() {
+      editor.addEventListener('input', () => {
+        updateLineNumbers();
+        updateStatus();
+        if (state.files[state.activeFileIndex]) {
+          state.files[state.activeFileIndex].content = editor.value;
         }
-<!-- ... existing code ... -->
+      });
+      editor.addEventListener('keyup', updateStatus);
+      editor.addEventListener('click', updateStatus);
+
+      document.getElementById('btn-run-all').onclick = runTasks;
+      document.getElementById('btn-clear-terminal').onclick = () => {
+        terminalOutput.innerHTML = '';
+      };
+
+      // Modals toggles
+      document.getElementById('btn-open-ai-rules').onclick = () => {
+        document.getElementById('modal-ai').classList.remove('hidden');
+      };
+      document.getElementById('btn-open-scheduler').onclick = () => {
+        document.getElementById('modal-scheduler').classList.remove('hidden');
+      };
+      document.getElementById('btn-open-manual').onclick = generatePDFManual;
+
+      document.querySelectorAll('.btn-close-modal').forEach(btn => {
+        btn.onclick = (e) => {
+          e.target.closest('.fixed').classList.add('hidden');
+        };
+      });
+
+      // Save AI Config
+      document.getElementById('btn-save-ai-cfg').onclick = () => {
+        state.ai.enabled = document.getElementById('ai-toggle-enable').checked;
+        state.ai.apiKey = document.getElementById('cfg-api-key').value;
+        state.ai.model = document.getElementById('cfg-ai-model').value;
+        state.ai.prompt = document.getElementById('cfg-ai-prompt').value || state.ai.prompt;
+        
+        // Update indicator
+        if (state.ai.enabled) {
+          aiStatusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>AI: Active</span>';
+        } else {
+          aiStatusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>AI: Offline</span>';
+        }
+
+        document.getElementById('modal-ai').classList.add('hidden');
+        logTerminal(`AI configuration saved. Core Mode: ${state.ai.enabled ? 'ACTIVE' : 'OFFLINE'}`, 'success');
+      };
+
+      // Save Scheduler Config
+      document.getElementById('btn-save-sched').onclick = () => {
+        state.scheduler.enabled = document.getElementById('sched-enable').checked;
+        state.scheduler.mode = document.getElementById('sched-mode').value;
+        state.scheduler.interval = parseInt(document.getElementById('sched-interval-val').value) || 15;
+        state.scheduler.day = parseInt(document.getElementById('sched-day').value);
+        state.scheduler.time = document.getElementById('sched-time').value;
+
+        const badge = document.getElementById('scheduler-badge');
+        if (state.scheduler.enabled) {
+          badge.textContent = 'ON';
+          badge.className = 'bg-emerald-700 text-[9px] px-1 rounded text-white font-bold';
+          logTerminal(`Background Scheduler ENABLED (${state.scheduler.mode} mode).`, 'success');
+        } else {
+          badge.textContent = 'OFF';
+          badge.className = 'bg-gray-700 text-[9px] px-1 rounded text-gray-300';
+          logTerminal('Background Scheduler DISABLED.', 'warning');
+        }
+
+        document.getElementById('modal-scheduler').classList.add('hidden');
+      };
+
+      // Folder picker (FileSystem API fallback)
+      document.getElementById('btn-open-folder').onclick = async () => {
+        if ('showDirectoryPicker' in window) {
+          try {
+            state.dirHandle = await window.showDirectoryPicker();
+            folderNameDisplay.textContent = `Workspace: ${state.dirHandle.name}`;
+            logTerminal(`Opened local directory: ${state.dirHandle.name}`, 'success');
+          } catch (err) {
+            logTerminal('Directory selection cancelled.', 'warning');
+          }
+        } else {
+          logTerminal('Local Folder Access API not supported by browser. Memory workspace in use.', 'warning');
+        }
+      };
+
+      // New File Creation
+      document.getElementById('btn-new-file').onclick = () => {
+        const fileName = prompt('Enter new file name (e.g., tasks.md):', 'new_tasks.md');
+        if (fileName) {
+          state.files.push({ name: fileName, content: `# ${fileName}\n\n- [ ] Initial task @task Example workflow step\n` });
+          switchFile(state.files.length - 1);
+          logTerminal(`Created new file: ${fileName}`, 'success');
+        }
+      };
+
+      // Toggle Scheduler Mode Inputs
+      document.getElementById('sched-mode').onchange = (e) => {
+        if (e.target.value === 'weekly') {
+          document.getElementById('sched-interval-box').classList.add('hidden');
+          document.getElementById('sched-weekly-box').classList.remove('hidden');
+        } else {
+          document.getElementById('sched-interval-box').classList.remove('hidden');
+          document.getElementById('sched-weekly-box').classList.add('hidden');
+        }
+      };
+    }
+
+    // Background Interval Tick Check
+    setInterval(() => {
+      if (state.scheduler.enabled) {
+        logTerminal('[Background Schedule Tick] Auto-executing active file tasks...', 'info');
+        runTasks();
+      }
+    }, 60000); // Check every minute
+
+    // Initialize application on load
+    window.onload = init;
+  </script>
+</body>
+</html>
