@@ -1,0 +1,158 @@
+<!-- ... existing code ... -->
+    <!-- MODAL 1: AI Prompt & Key Config -->
+    <div id="aiModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-npp-sidebar border border-npp-border rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+            <div class="bg-[#2d2d2d] px-4 py-2.5 border-b border-npp-border flex items-center justify-between">
+                <div class="flex items-center space-x-2 text-npp-accentGreen font-bold text-sm">
+                    <i data-lucide="cpu" class="w-4 h-4"></i>
+                    <span>AI Engine & Parsing Rules Config</span>
+                </div>
+                <button id="btnCloseAI" class="text-npp-dim hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-4 space-y-4 text-xs font-sans overflow-y-auto max-h-[80vh]">
+                <!-- Master AI Toggle Option -->
+                <div class="flex items-center justify-between p-3 bg-[#1e1e1e] border border-npp-border rounded-md">
+                    <div>
+                        <span class="font-bold text-npp-text">Enable Gemini AI Core</span>
+                        <p class="text-[11px] text-npp-dim">When turned OFF, @ai tags will be executed as local offline text tasks without contacting any external API.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="cfgAIEnable" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-npp-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-npp-accentGreen"></div>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-npp-text mb-1">Gemini API Key (Optional)</label>
+                    <input type="password" id="cfgApiKey" placeholder="Leave empty for runtime context key or insert your key..." class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none focus:border-npp-accent font-mono text-xs">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-npp-text mb-1">Model Selection</label>
+                    <select id="cfgModel" class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none font-mono text-xs">
+                        <option value="gemini-3-flash-preview">gemini-3-flash-preview (Recommended)</option>
+                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-npp-text mb-1">System Instructions / Execution Prompt</label>
+                    <textarea id="cfgSystemPrompt" rows="6" class="w-full bg-[#1e1e1e] border border-npp-border rounded p-2 text-npp-text focus:outline-none focus:border-npp-accent font-mono text-xs leading-relaxed" placeholder="Tell the AI how to interpret markdown tags, refine tasks, generate logs or compile summaries..."></textarea>
+                    <p class="text-[11px] text-npp-dim mt-1">These guidelines govern how the AI processes your Markdown notes, handles task execution, and fulfills `@ai` custom directives.</p>
+                </div>
+            </div>
+            <div class="bg-[#2d2d2d] px-4 py-2 border-t border-npp-border flex justify-end space-x-2">
+                <button id="btnSaveAI" class="bg-npp-accent hover:bg-npp-accent/80 text-white px-4 py-1.5 rounded text-xs transition">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+<!-- ... existing code ... -->
+    <!-- App Logic Script -->
+    <script>
+        // Default Mock Data with Comprehensive Predefined Markdown Examples
+        const defaultFiles = [
+            {
+                name: "01_local_tasks_no_ai.md",
+                content: `# Local Workflow (No-AI Mode Enabled)\n\nThis document contains only offline plain-text tasks and local triggers that require zero external API setup.\n\n## Local Operations\n- [ ] @build npm run lint && npm run test\n- [ ] @clean remove temporary build caches and log buffers\n- [ ] @webhook https://httpbin.org/post payload={"status":"offline_check"}\n- [ ] @task Verify local filesystem markdown consistency\n\n## Standard Checklist\n- [ ] Backup local configuration files\n- [ ] Check background scheduler execution status\n`
+            },
+            {
+                name: "02_ai_workflows.md",
+                content: `# AI Assisted Note Automation\n\nEnable the AI core in **AI Core Rules** to automatically run `@ai` instructions.\n\n## Tasks for AI Execution\n- [ ] @ai Draft a 3-bullet summary of local-first plain-text advantages.\n- [ ] @ai Review this note and suggest 2 missing micro-tasks.\n- [ ] Standard task: Manually approve AI output formatting.\n`
+            },
+            {
+                name: "03_webhook_triggers.md",
+                content: `# External Webhooks & Micro-services\n\nTriggers HTTP POST requests to third-party endpoints or webhooks (n8n, Make, Zapier, custom backend API).\n\n## Webhook Pipeline\n- [ ] @webhook https://jsonplaceholder.typicode.com/posts\n- [ ] @task Verify webhook response payload status in TUI Console\n`
+            },
+            {
+                name: "04_scheduled_automation.md",
+                content: `# Background Scheduled Maintenance\n\nThis note is configured for periodic execution via the **Task Scheduler** modal (top menu).\n\n## Scheduled Tasks\n- [ ] @clean purge active workspace logs\n- [ ] @build run release check\n- [ ] @webhook https://httpbin.org/post payload={"schedule":"daily_cron"}\n`
+            }
+        ];
+
+        // State Management
+        let files = [...defaultFiles];
+        let activeFileIndex = 0;
+        let aiEnabled = true;
+        let systemPrompt = "You are MarkFlow AI, an intelligent Markdown task execution engine. Parse user tasks, execute directives clearly, and return high-value concise outputs formatted as clean markdown notes.";
+        let apiKey = "";
+        let selectedModel = "gemini-3-flash-preview";
+<!-- ... existing code ... -->
+        function initSchedulerUI() {
+            schEnable.checked = schedulerConfig.enabled;
+            schMode.value = schedulerConfig.mode;
+            document.getElementById('schIntervalValue').value = schedulerConfig.intervalValue;
+            document.getElementById('schIntervalUnit').value = schedulerConfig.intervalUnit;
+            document.getElementById('schTime').value = schedulerConfig.time;
+            document.getElementById('schTargetDoc').value = schedulerConfig.targetDoc;
+            document.getElementById('schNotify').checked = schedulerConfig.notify;
+            toggleSchedulerModeUI();
+        }
+
+        function initAISettingsUI() {
+            document.getElementById('cfgAIEnable').checked = aiEnabled;
+            document.getElementById('cfgApiKey').value = apiKey;
+            document.getElementById('cfgModel').value = selectedModel;
+            document.getElementById('cfgSystemPrompt').value = systemPrompt;
+            updateAIServiceStatusBar();
+        }
+
+        function updateAIServiceStatusBar() {
+            const sbAIService = document.getElementById('sbAIService');
+            if (aiEnabled) {
+                sbAIService.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span><span>AI Enabled (${selectedModel})</span>`;
+            } else {
+                sbAIService.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span><span class="text-npp-dim">AI Core Disabled (Offline Mode)</span>`;
+            }
+        }
+<!-- ... existing code ... -->
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initAISettingsUI();
+            renderFileTree();
+            renderTabs();
+            loadActiveFile();
+            initSchedulerUI();
+<!-- ... existing code ... -->
+        // Execute Tasks Engine
+        async function executeTask(task) {
+            termStatus.innerText = `[Running Task Line ${task.lineIndex + 1}]`;
+            termStatus.className = 'text-yellow-400 font-bold';
+
+            logTerminal(`Executing line ${task.lineIndex + 1}: "${task.content}"`, 'info');
+
+            if (task.type === 'ai') {
+                if (!aiEnabled) {
+                    logTerminal(`AI disabled in settings. Skipping Gemini call and running offline: "${task.content}"`, 'warn');
+                } else {
+                    await handleAITask(task);
+                }
+            } else if (task.type === 'webhook') {
+                await handleWebhookTask(task);
+            } else if (task.type === 'clean') {
+                logTerminal(`Triggered local cleanup routine for active note buffer...`, 'success');
+            } else if (task.type === 'build') {
+                logTerminal(`[BUILD RUNNER] Simulating build pipeline execution: ${task.content.replace('@build', '')}`, 'success');
+            } else {
+                logTerminal(`Task completed: ${task.content}`, 'success');
+            }
+
+            // Mark task checkbox as completed in markdown text
+            markTaskComplete(task.lineIndex);
+
+            termStatus.innerText = '[Idle]';
+            termStatus.className = 'text-npp-dim';
+        }
+<!-- ... existing code ... -->
+        // Save AI Modal Configuration
+        function saveAISettings() {
+            aiEnabled = document.getElementById('cfgAIEnable').checked;
+            apiKey = document.getElementById('cfgApiKey').value.trim();
+            selectedModel = document.getElementById('cfgModel').value;
+            systemPrompt = document.getElementById('cfgSystemPrompt').value.trim();
+            document.getElementById('aiModal').classList.add('hidden');
+            updateAIServiceStatusBar();
+            logTerminal(`AI settings updated. Status: ${aiEnabled ? 'Enabled (' + selectedModel + ')' : 'Disabled (Offline Mode)'}`, 'success');
+        }
+<!-- ... existing code ... -->
