@@ -63,7 +63,7 @@
     <div class="flex items-center space-x-4">
       <div class="flex items-center space-x-1 font-bold text-white tracking-wide">
         <span class="text-emerald-400">MarkFlow</span>
-        <span class="text-[10px] bg-emerald-950 text-emerald-400 px-1 rounded border border-emerald-800">v1.2.0</span>
+        <span class="text-[10px] bg-emerald-950 text-emerald-400 px-1 rounded border border-emerald-800">v1.3.0</span>
       </div>
       <nav class="flex space-x-2">
         <button id="btn-open-folder" class="hover:bg-[#3e3e42] px-2 py-0.5 rounded transition">📂 Open Folder</button>
@@ -146,9 +146,9 @@
 
   <!-- MODAL: AI Configuration -->
   <div id="modal-ai" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="modal-content w-full max-w-xl rounded-lg p-5 flex flex-col space-y-4">
+    <div class="modal-content w-full max-w-xl rounded-lg p-5 flex flex-col space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div class="flex justify-between items-center border-b border-[#3e3e42] pb-2">
-        <h3 class="font-bold text-white text-sm">AI Engine & Parsing Rules Config</h3>
+        <h3 class="font-bold text-white text-sm">AI Engine & Multi-Provider Config</h3>
         <button class="btn-close-modal text-gray-400 hover:text-white">✕</button>
       </div>
       
@@ -156,27 +156,41 @@
       <div class="flex items-center space-x-3 bg-[#1e1e1e] p-3 rounded border border-[#3e3e42]">
         <input type="checkbox" id="ai-toggle-enable" class="w-4 h-4 accent-emerald-500 cursor-pointer" checked>
         <label for="ai-toggle-enable" class="text-xs cursor-pointer select-none">
-          <span class="font-bold text-white block">Enable Gemini AI Core</span>
+          <span class="font-bold text-white block">Enable AI Core</span>
           <span class="text-gray-400 text-[11px]">When turned OFF, @ai tags will be executed as local offline text tasks without contacting any external API.</span>
         </label>
       </div>
 
+      <!-- Provider Selection -->
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-gray-300">Gemini API Key (Optional)</label>
-        <input type="password" id="cfg-api-key" class="w-full px-3 py-1.5 text-xs" placeholder="Leave empty for runtime key injection...">
-      </div>
-
-      <div class="space-y-1">
-        <label class="text-xs font-semibold text-gray-300">Model Selection</label>
-        <select id="cfg-ai-model" class="w-full px-3 py-1.5 text-xs">
-          <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & Recommended)</option>
-          <option value="gemini-2.5-pro">gemini-2.5-pro (Advanced Reasoning)</option>
+        <label class="text-xs font-semibold text-gray-300">AI Provider</label>
+        <select id="cfg-ai-provider" class="w-full px-3 py-1.5 text-xs">
+          <option value="gemini">Google Gemini</option>
+          <option value="openai">OpenAI (ChatGPT / GPT-4o)</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="custom">Custom / Local LLM (Ollama, LM Studio, Groq)</option>
         </select>
       </div>
 
       <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">API Key</label>
+        <input type="password" id="cfg-api-key" class="w-full px-3 py-1.5 text-xs" placeholder="Enter provider API key...">
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-300">Model Name / Identifier</label>
+        <input type="text" id="cfg-ai-model" class="w-full px-3 py-1.5 text-xs font-mono" value="gemini-2.5-flash" placeholder="e.g. gpt-4o-mini, claude-3-5-sonnet-20241022, gemini-2.5-flash, llama3">
+      </div>
+
+      <!-- Endpoint URL (For custom or proxies) -->
+      <div class="space-y-1" id="box-custom-url">
+        <label class="text-xs font-semibold text-gray-300">Custom Base URL (Optional)</label>
+        <input type="text" id="cfg-custom-url" class="w-full px-3 py-1.5 text-xs font-mono" placeholder="http://localhost:11434/v1/chat/completions">
+      </div>
+
+      <div class="space-y-1">
         <label class="text-xs font-semibold text-gray-300">System Instructions / Execution Prompt</label>
-        <textarea id="cfg-ai-prompt" rows="4" class="w-full px-3 py-1.5 text-xs font-mono" placeholder="Tell the AI how to interpret markdown tags, refine tasks, generate logs or compile summaries..."></textarea>
+        <textarea id="cfg-ai-prompt" rows="3" class="w-full px-3 py-1.5 text-xs font-mono" placeholder="Tell the AI how to interpret markdown tags, refine tasks, generate logs or compile summaries..."></textarea>
       </div>
 
       <div class="flex justify-between items-center pt-2">
@@ -269,8 +283,10 @@
       dirHandle: null,
       ai: {
         enabled: true,
+        provider: 'gemini',
         apiKey: '',
         model: 'gemini-2.5-flash',
+        customUrl: '',
         prompt: 'You are the MarkFlow Task Engine AI. Process user markdown task directives efficiently and return clear execution summaries.'
       },
       scheduler: {
@@ -396,7 +412,7 @@
             if (!state.ai.enabled) {
               logTerminal(`[OFFLINE MODE] Skipping API request for @ai tag: "${taskContent}"`, 'warning');
             } else {
-              logTerminal(`Executing AI Directive: ${taskContent}`, 'ai');
+              logTerminal(`Executing AI Directive [${state.ai.provider.toUpperCase()}]: ${taskContent}`, 'ai');
               await executeAITask(taskContent);
             }
           } else if (taskContent.includes('@webhook')) {
@@ -425,21 +441,64 @@
       }
     }
 
+    // Universal Multi-Provider AI Caller
     async function executeAITask(taskText) {
-      if (!state.ai.apiKey) {
+      if (!state.ai.apiKey && state.ai.provider !== 'custom') {
         logTerminal('AI execution simulation (No API Key set in AI Rules menu).', 'warning');
         return;
       }
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.ai.model}:generateContent?key=${state.ai.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${state.ai.prompt}\nTask: ${taskText}` }] }]
-          })
-        });
-        const data = await res.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response text received.';
+        let reply = '';
+        const promptText = `${state.ai.prompt}\nTask: ${taskText}`;
+
+        if (state.ai.provider === 'gemini') {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.ai.model}:generateContent?key=${state.ai.apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+          });
+          const data = await res.json();
+          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || data.error?.message || 'No response text received.';
+
+        } else if (state.ai.provider === 'openai' || state.ai.provider === 'custom') {
+          const endpoint = state.ai.customUrl || 'https://api.openai.com/v1/chat/completions';
+          const headers = { 'Content-Type': 'application/json' };
+          if (state.ai.apiKey) headers['Authorization'] = `Bearer ${state.ai.apiKey}`;
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              model: state.ai.model || 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: state.ai.prompt },
+                { role: 'user', content: taskText }
+              ]
+            })
+          });
+          const data = await res.json();
+          reply = data.choices?.[0]?.message?.content || data.error?.message || 'No response text received.';
+
+        } else if (state.ai.provider === 'anthropic') {
+          const endpoint = state.ai.customUrl || 'https://api.anthropic.com/v1/messages';
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': state.ai.apiKey,
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+              model: state.ai.model || 'claude-3-5-sonnet-20241022',
+              max_tokens: 1024,
+              system: state.ai.prompt,
+              messages: [{ role: 'user', content: taskText }]
+            })
+          });
+          const data = await res.json();
+          reply = data.content?.[0]?.text || data.error?.message || 'No response text received.';
+        }
+
         logTerminal(`AI Response: ${reply}`, 'ai');
       } catch (e) {
         logTerminal(`AI Call Error: ${e.message}`, 'error');
@@ -470,7 +529,7 @@
         "",
         "2. MARKDOWN TAG DIRECTIVES",
         "  - [ ] Standard task              -> Local execution log",
-        "  - [ ] Task @ai <instruction>    -> Processed via Gemini AI",
+        "  - [ ] Task @ai <instruction>    -> Processed via Gemini/OpenAI/Claude/Local LLM",
         "  - [ ] Action @webhook <url>     -> Trigger HTTP POST payload",
         "  - [ ] Cleanup @clean <path>     -> Executes file system cleanup",
         "  - [ ] Shell task @build <cmd>   -> Runs build script step",
@@ -479,9 +538,10 @@
         "Open the Scheduler menu to configure periodic background runs.",
         "Choose between minute intervals or weekly day/time scheduling.",
         "",
-        "4. AI CORE TOGGLE",
-        "Disable AI Core in AI Rules configuration to execute files completely",
-        "offline without making external network calls.",
+        "4. MULTI-PROVIDER AI CORE",
+        "Supports Google Gemini, OpenAI (ChatGPT), Anthropic (Claude), and",
+        "custom local APIs (Ollama / LM Studio). Turn OFF AI Core to execute",
+        "tasks completely offline.",
         "",
         "===========================================================",
         "Generated by MarkFlow Plain-Text Task Runner System"
@@ -529,22 +589,34 @@
         };
       });
 
+      // AI Provider selector logic preset defaults
+      document.getElementById('cfg-ai-provider').onchange = (e) => {
+        const val = e.target.value;
+        const modelInput = document.getElementById('cfg-ai-model');
+        if (val === 'gemini') modelInput.value = 'gemini-2.5-flash';
+        else if (val === 'openai') modelInput.value = 'gpt-4o-mini';
+        else if (val === 'anthropic') modelInput.value = 'claude-3-5-sonnet-20241022';
+        else if (val === 'custom') modelInput.value = 'llama3';
+      };
+
       // Save AI Config
       document.getElementById('btn-save-ai-cfg').onclick = () => {
         state.ai.enabled = document.getElementById('ai-toggle-enable').checked;
+        state.ai.provider = document.getElementById('cfg-ai-provider').value;
         state.ai.apiKey = document.getElementById('cfg-api-key').value;
         state.ai.model = document.getElementById('cfg-ai-model').value;
+        state.ai.customUrl = document.getElementById('cfg-custom-url').value;
         state.ai.prompt = document.getElementById('cfg-ai-prompt').value || state.ai.prompt;
         
         // Update indicator
         if (state.ai.enabled) {
-          aiStatusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>AI: Active</span>';
+          aiStatusIndicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>AI: ${state.ai.provider.toUpperCase()}</span>`;
         } else {
           aiStatusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>AI: Offline</span>';
         }
 
         document.getElementById('modal-ai').classList.add('hidden');
-        logTerminal(`AI configuration saved. Core Mode: ${state.ai.enabled ? 'ACTIVE' : 'OFFLINE'}`, 'success');
+        logTerminal(`AI configuration saved (${state.ai.provider.toUpperCase()}). Core Mode: ${state.ai.enabled ? 'ACTIVE' : 'OFFLINE'}`, 'success');
       };
 
       // Save Scheduler Config
